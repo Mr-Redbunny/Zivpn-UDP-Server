@@ -58,7 +58,7 @@ wget -O /usr/local/bin/rb-menu https://raw.githubusercontent.com/Mr-Redbunny/Ziv
 wget -O /usr/local/bin/auth.sh https://raw.githubusercontent.com/Mr-Redbunny/Zivpn-UDP-Server/main/auth.sh > /dev/null 2>&1
 chmod +x /usr/local/bin/rb-menu
 chmod +x /usr/local/bin/auth.sh
-touch /root/users.json
+echo "[]" > /root/users.json
 
 # Setup cron job
 (crontab -l 2>/dev/null | grep -v "auth.sh"; echo "* * * * * /usr/local/bin/auth.sh > /dev/null 2>&1") | crontab -
