@@ -3,13 +3,13 @@
 # Creator Zahid Islam
 
 echo -e "Updating server"
-sudo apt-get update && apt-get upgrade -y
+sudo apt-get update && apt-get upgrade -y && apt-get install -y jq
 systemctl stop zivpn.service 1> /dev/null 2> /dev/null
 echo -e "Downloading UDP Service"
-wget https://github.com/zahidbd2/udp-zivpn/releases/download/udp-zivpn_1.4.9/udp-zivpn-linux-arm64 -O /usr/local/bin/zivpn 1> /dev/null 2> /dev/null
+wget https://github.com/Mr-Redbunny/Zivpn-UDP-Server/releases/download/udp-zivpn_1.4.9/udp-zivpn-linux-arm64 -O /usr/local/bin/zivpn 1> /dev/null 2> /dev/null
 chmod +x /usr/local/bin/zivpn
 mkdir /etc/zivpn 1> /dev/null 2> /dev/null
-wget https://raw.githubusercontent.com/zahidbd2/udp-zivpn/main/config.json -O /etc/zivpn/config.json 1> /dev/null 2> /dev/null
+wget https://raw.githubusercontent.com/Mr-Redbunny/Zivpn-UDP-Server/main/config.json -O /etc/zivpn/config.json 1> /dev/null 2> /dev/null
 
 echo "Generating cert files:"
 openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=US/ST=California/L=Los Angeles/O=Example Corp/OU=IT Department/CN=zivpn" -keyout "/etc/zivpn/zivpn.key" -out "/etc/zivpn/zivpn.crt"
@@ -51,6 +51,19 @@ fi
 new_config_str="\"config\": [$(printf "\"%s\"," "${config[@]}" | sed 's/,$//')]"
 
 sed -i -E "s/\"config\": ?\[[[:space:]]*\"zi\"[[:space:]]*\]/${new_config_str}/g" /etc/zivpn/config.json
+
+# Install Redbunny Manager
+echo "Installing Redbunny Manager..."
+wget -O /usr/local/bin/rb-menu https://raw.githubusercontent.com/Mr-Redbunny/Zivpn-UDP-Server/main/menu.sh > /dev/null 2>&1
+wget -O /usr/local/bin/auth.sh https://raw.githubusercontent.com/Mr-Redbunny/Zivpn-UDP-Server/main/auth.sh > /dev/null 2>&1
+chmod +x /usr/local/bin/rb-menu
+chmod +x /usr/local/bin/auth.sh
+touch /root/users.json
+
+# Setup cron job
+(crontab -l 2>/dev/null | grep -v "auth.sh"; echo "* * * * * /usr/local/bin/auth.sh > /dev/null 2>&1") | crontab -
+
+echo "Redbunny Manager installed. Run 'rb-menu' to manage users."
 
 systemctl enable zivpn.service
 systemctl start zivpn.service
