@@ -9,9 +9,38 @@ NC='\033[0m' # No Color
 
 # File Database
 DB_FILE="/root/users.json"
+SERVICE_NAME="zivpn.service"
+
 if [ ! -f "$DB_FILE" ]; then
     echo "[]" > "$DB_FILE"
 fi
+
+# Fungsi untuk memeriksa dan menampilkan status server
+check_server_status() {
+    if systemctl is-active --quiet "$SERVICE_NAME"; then
+        SERVER_STATUS="${GREEN}AKTIF (Berjalan)${NC}"
+    else
+        SERVER_STATUS="${RED}TIDAK AKTIF (Berhenti)${NC}"
+    fi
+}
+
+# --- Fungsi Kontrol Server ---
+control_server() {
+    ACTION=$1
+    clear
+    echo -e "${YELLOW}Sedang mencoba untuk ${ACTION} server...${NC}"
+
+    # Menjalankan perintah dengan sudo karena skrip mungkin tidak dijalankan sebagai root
+    sudo systemctl "$ACTION" "$SERVICE_NAME"
+
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}Server berhasil di-${ACTION}.${NC}"
+    else
+        echo -e "${RED}Gagal untuk ${ACTION} server. Coba periksa log dengan 'journalctl -u ${SERVICE_NAME}'.${NC}"
+    fi
+
+    read -p "Tekan [Enter] untuk kembali..."
+}
 
 # Fungsi untuk menambah pengguna baru
 add_user() {
@@ -39,7 +68,6 @@ add_user() {
     fi
     echo -e "${GREEN}Kata sandi telah diatur.${NC}"
 
-    # Batas IP dihapus dari input pengguna, default ke 1
     ip_limit=1
 
     while true; do
@@ -149,7 +177,6 @@ update_server() {
     echo "Data pengguna dan skrip manajemen Anda akan tetap aman."
     read -p "Apakah Anda ingin melanjutkan? (y/n): " confirm
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
-        # Asumsi server adalah amd64. Jika tidak, perlu logika deteksi arsitektur.
         if [ -f "/root/zi.sh" ]; then
             bash /root/zi.sh
         else
@@ -172,22 +199,15 @@ uninstall_server() {
         read -p "Konfirmasi terakhir. Ketik 'HAPUS' untuk melanjutkan: " final_confirm
         if [[ "$final_confirm" == "HAPUS" ]]; then
             echo "Menjalankan proses uninstall..."
-
-            # Hapus cron job
             (crontab -l | grep -v "auth.sh" | crontab -)
-
-            # Jalankan uninstaller asli
             if [ -f "/root/uninstall.sh" ]; then
                 bash /root/uninstall.sh
             else
                 wget -O /root/uninstall.sh https://raw.githubusercontent.com/Mr-Redbunny/Zivpn-UDP-Server/main/uninstall.sh && sudo chmod +x /root/uninstall.sh && sudo /root/uninstall.sh
             fi
-
-            # Hapus file Redbunny
             rm -f /root/users.json
             rm -f /usr/local/bin/rb-menu
             rm -f /usr/local/bin/auth.sh
-
             echo -e "${GREEN}Semua komponen telah dihapus. Terima kasih.${NC}"
             exit 0
         else
@@ -201,6 +221,7 @@ uninstall_server() {
 
 # Fungsi untuk menampilkan menu utama
 show_main_menu() {
+    check_server_status
     clear
     echo -e "${RED}"
     echo "      (\_/)"
@@ -210,6 +231,7 @@ show_main_menu() {
     echo -e "${CYAN}=========================================${NC}"
     echo -e "      ${YELLOW}Redbunny UDP Server Manager${NC}"
     echo -e "${CYAN}=========================================${NC}"
+    echo -e "  Status Server: ${SERVER_STATUS}"
     echo ""
     echo "  --- Manajemen Pengguna ---"
     echo "  1. Tambah Pengguna Baru"
@@ -217,11 +239,14 @@ show_main_menu() {
     echo "  3. Tampilkan Semua Pengguna"
     echo ""
     echo "  --- Manajemen Server ---"
-    echo "  4. Perbarui Server"
-    echo "  5. Hapus Instalan Server (Uninstall)"
+    echo "  4. Mulai Server"
+    echo "  5. Hentikan Server"
+    echo "  6. Mulai Ulang Server (Restart)"
+    echo "  7. Perbarui Server"
+    echo "  8. Hapus Instalan Server"
     echo ""
     echo "  ---"
-    echo "  6. Keluar"
+    echo "  9. Keluar"
     echo ""
     echo -e "${CYAN}=========================================${NC}"
 }
@@ -229,30 +254,17 @@ show_main_menu() {
 # Loop menu utama
 while true; do
     show_main_menu
-    read -p "Masukkan pilihan Anda [1-6]: " choice
+    read -p "Masukkan pilihan Anda [1-9]: " choice
     case $choice in
-        1)
-            add_user
-            ;;
-        2)
-            delete_user
-            ;;
-        3)
-            list_users
-            ;;
-        4)
-            update_server
-            ;;
-        5)
-            uninstall_server
-            ;;
-        6)
-            echo "Terima kasih telah menggunakan Redbunny Server Manager!"
-            exit 0
-            ;;
-        *)
-            echo -e "${RED}Pilihan tidak valid. Silakan coba lagi.${NC}"
-            sleep 2
-            ;;
+        1) add_user ;;
+        2) delete_user ;;
+        3) list_users ;;
+        4) control_server "start" ;;
+        5) control_server "stop" ;;
+        6) control_server "restart" ;;
+        7) update_server ;;
+        8) uninstall_server ;;
+        9) echo "Terima kasih telah menggunakan Redbunny Server Manager!" && exit 0 ;;
+        *) echo -e "${RED}Pilihan tidak valid. Silakan coba lagi.${NC}" && sleep 2 ;;
     esac
 done
